@@ -991,7 +991,7 @@ declare module 'discord.js' {
 
 	export class SnowflakeUtil {
 		public static deconstruct(snowflake: Snowflake): DeconstructedSnowflake;
-		public static generate(): Snowflake;
+		public static generate(timestamp?: number | Date): Snowflake;
 	}
 
 	const VolumeMixin: <T>(base: Constructable<T>) => Constructable<T & VolumeInterface>;
@@ -1441,7 +1441,7 @@ declare module 'discord.js' {
 		typing: boolean;
 		typingCount: number;
 		awaitMessages(filter: CollectorFilter, options?: AwaitMessagesOptions): Promise<Collection<Snowflake, Message>>;
-		bulkDelete(messages: Collection<Snowflake, Message> | Message[] | number, filterOld?: boolean): Promise<Collection<Snowflake, Message>>;
+		bulkDelete(messages: Collection<Snowflake, Message> | Message[] | Snowflake[] | number, filterOld?: boolean): Promise<Collection<Snowflake, Message>>;
 		createMessageCollector(filter: CollectorFilter, options?: MessageCollectorOptions): MessageCollector;
 		startTyping(count?: number): Promise<void>;
 		stopTyping(force?: boolean): void;
@@ -1782,6 +1782,7 @@ declare module 'discord.js' {
 		parent?: ChannelResolvable;
 		permissionOverwrites?: OverwriteResolvable[] | Collection<Snowflake, OverwriteResolvable>;
 		rateLimitPerUser?: number;
+		position?: number;
 		reason?: string
 	};
 

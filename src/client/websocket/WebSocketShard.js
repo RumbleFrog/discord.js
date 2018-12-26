@@ -1,3 +1,5 @@
+'use strict';
+
 const EventEmitter = require('events');
 const WebSocket = require('../../WebSocket');
 const { Status, Events, OPCodes, WSEvents, WSCodes } = require('../../util/Constants');
@@ -435,7 +437,9 @@ class WebSocketShard extends EventEmitter {
       this.debug(`Tried to send packet ${data} but no WebSocket is available!`);
       return;
     }
-    this.ws.send(WebSocket.pack(data));
+    this.ws.send(WebSocket.pack(data), err => {
+      if (err) this.manager.client.emit(Events.ERROR, err);
+    });
   }
 
   /**
