@@ -72,20 +72,6 @@ class WebSocketShard extends EventEmitter {
     this.lastPingTimestamp = -1;
 
     /**
-     * The last time an ack was received (a timestamp)
-     * @type {number}
-     * @private
-     */
-    this.lastAckTimestamp = -1;
-
-    /**
-     * The interval in which it should receive an ack from gateway
-     * @type {number}
-     * @private
-     */
-    this.ackInterval = -1;
-
-    /**
      * List of servers the shard is connected to
      * @type {string[]}
      * @private
@@ -168,23 +154,7 @@ class WebSocketShard extends EventEmitter {
         this.debug(`Setting a heartbeat interval for ${time}ms`);
         if (this.heartbeatInterval) this.manager.client.clearInterval(this.heartbeatInterval);
         this.heartbeatInterval = this.manager.client.setInterval(() => this.heartbeat(), time);
-        this.ackInterval = time;
       }
-      return;
-    }
-
-    if (this.lastAckTimestamp + (2 * this.ackInterval) < Date.now()) {
-      this.debug(`Have not gotten a heartbeat ACK in ${Date.now() - this.lastAckTimestamp}, triggering a reconnection`);
-      this.heartbeat(-1);
-
-      // expects non 1000 closing frame
-      if (this.ws) this.ws.close(1001);
-
-      this.ws = null;
-      this.status = Status.RECONNECTING;
-
-      this.connect();
-
       return;
     }
 
@@ -201,7 +171,6 @@ class WebSocketShard extends EventEmitter {
    * @private
    */
   ackHeartbeat() {
-    this.lastAckTimestamp = Date.now();
     const latency = Date.now() - this.lastPingTimestamp;
     this.debug(`Heartbeat acknowledged, latency of ${latency}ms`);
     this.pings.unshift(latency);
