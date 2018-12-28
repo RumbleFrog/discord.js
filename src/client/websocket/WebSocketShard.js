@@ -76,7 +76,7 @@ class WebSocketShard extends EventEmitter {
      * @type {number}
      * @private
      */
-    this.lastAckTimestamp = -1;
+    this.lastAckTimestamp = Date.now();
 
     /**
      * The interval in which it should receive an ack from gateway
