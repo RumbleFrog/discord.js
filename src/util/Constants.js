@@ -7,7 +7,7 @@ const browser = exports.browser = typeof window !== 'undefined';
 /**
  * Options for a client.
  * @typedef {Object} ClientOptions
- * @property {number|number[]} [shards=0] ID of the shard to run, or an array of shard IDs
+ * @property {number|number[]} [shards] ID of the shard to run, or an array of shard IDs
  * @property {number} [shardCount=1] Total number of shards that will be spawned by this Client
  * @property {number} [totalShardCount=1] The total amount of shards used by all processes of this bot
  * (e.g. recommended shard count, shard count of the ShardingManager)
@@ -21,6 +21,9 @@ const browser = exports.browser = typeof window !== 'undefined';
  * @property {boolean} [fetchAllMembers=false] Whether to cache all guild members and users upon startup, as well as
  * upon joining a guild (should be avoided whenever possible)
  * @property {boolean} [disableEveryone=false] Default value for {@link MessageOptions#disableEveryone}
+ * @property {PartialType[]} [partials] Structures allowed to be partial. This means events can be emitted even when
+ * they're missing all the data for a particular structure. See the "Partials" topic listed in the sidebar for some
+ * important usage information, as partials require you to put checks in place when handling data.
  * @property {number} [restWsBridgeTimeout=5000] Maximum time permitted between REST responses and their
  * corresponding websocket events
  * @property {number} [restTimeOffset=500] Extra time in millseconds to wait before continuing to make REST
@@ -37,7 +40,6 @@ const browser = exports.browser = typeof window !== 'undefined';
  * @property {HTTPOptions} [http] HTTP options
  */
 exports.DefaultOptions = {
-  shards: 0,
   shardCount: 1,
   totalShardCount: 1,
   messageCacheMaxSize: 200,
@@ -45,6 +47,7 @@ exports.DefaultOptions = {
   messageSweepInterval: 0,
   fetchAllMembers: false,
   disableEveryone: false,
+  partials: [],
   restWsBridgeTimeout: 5000,
   disabledEvents: [],
   retryLimit: 1,
@@ -261,6 +264,23 @@ exports.Events = {
   INVALIDATED: 'invalidated',
   RAW: 'raw',
 };
+
+/**
+ * The type of Structure allowed to be a partial:
+ * * USER
+ * * CHANNEL (only affects DMChannels)
+ * * GUILD_MEMBER
+ * * MESSAGE
+ * <warn>Partials require you to put checks in place when handling data, read the Partials topic listed in the
+ * sidebar for more information.</warn>
+ * @typedef {string} PartialType
+ */
+exports.PartialTypes = keyMirror([
+  'USER',
+  'CHANNEL',
+  'GUILD_MEMBER',
+  'MESSAGE',
+]);
 
 /**
  * The type of a websocket message event, e.g. `MESSAGE_CREATE`. Here are the available events:
