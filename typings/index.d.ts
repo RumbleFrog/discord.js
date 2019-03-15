@@ -57,7 +57,7 @@ declare module 'discord.js' {
 			isWebhook?: boolean
 		): MessageOptions | WebhookMessageOptions;
 
-		public makeContent(): string | string[];
+		public makeContent(): string | string[] | undefined;
 		public resolve(): Promise<this>;
 		public resolveData(): this;
 		public resolveFiles(): Promise<this>;
@@ -393,6 +393,7 @@ declare module 'discord.js' {
 		public readonly createdAt: Date;
 		public readonly createdTimestamp: number;
 		public defaultMessageNotifications: DefaultMessageNotifications | number;
+		public readonly defaultRole: Role;
 		public deleted: boolean;
 		public embedEnabled: boolean;
 		public emojis: GuildEmojiStore;
@@ -1801,7 +1802,6 @@ declare module 'discord.js' {
 
 	interface GuildAuditLogsFetchOptions {
 		before?: Snowflake | GuildAuditLogsEntry;
-		after?: Snowflake | GuildAuditLogsEntry;
 		limit?: number;
 		user?: UserResolvable;
 		type?: string | number;
@@ -2203,6 +2203,7 @@ declare module 'discord.js' {
 		| 'PRESENCE_UPDATE'
 		| 'VOICE_STATE_UPDATE'
 		| 'TYPING_START'
+		| 'VOICE_STATE_UPDATE'
 		| 'VOICE_SERVER_UPDATE'
 		| 'WEBHOOKS_UPDATE';
 
