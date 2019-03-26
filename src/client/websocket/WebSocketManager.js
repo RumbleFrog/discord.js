@@ -1,6 +1,6 @@
 'use strict';
 
-const { Error: DJSError } = require('../../errors');
+const { Error } = require('../../errors');
 const Collection = require('../../util/Collection');
 const Util = require('../../util/Util');
 const WebSocketShard = require('./WebSocketShard');
@@ -123,7 +123,7 @@ class WebSocketManager {
    * @private
    */
   async connect() {
-    const invalidToken = new DJSError(WSCodes[4004]);
+    const invalidToken = new Error(WSCodes[4004]);
     const {
       url: gatewayURL,
       shards: recommendedShards,
@@ -159,7 +159,7 @@ class WebSocketManager {
       this.shardQueue = new Set(shards.map(id => new WebSocketShard(this, id)));
     } else {
       this.debug(`Spawning ${this.totalShards} shards`);
-      this.shardQueue = new Set(Array.from({ length: this.totalShards }, (_, id) => new WebSocketShard(this, id)));
+      this.shardQueue = new Set(Array.from({ length: recommendedShards }, (_, id) => new WebSocketShard(this, id)));
     }
 
     await this._handleSessionLimit(remaining, reset_after);
@@ -175,6 +175,9 @@ class WebSocketManager {
   async createShards() {
     // If we don't have any shards to handle, return
     if (!this.shardQueue.size) return false;
+
+    // Prevent reconnect from running
+    this.reconnecting = true;
 
     const [shard] = this.shardQueue;
 
@@ -214,10 +217,7 @@ class WebSocketManager {
           return;
         }
 
-        if (event.code >= 1000 && event.code <= 2000) {
-          // Any event code in this range cannot be resumed.
-          shard.sessionID = undefined;
-        }
+        shard.destroy();
 
         /**
          * Emitted when a shard is attempting to reconnect or re-identify.
@@ -225,14 +225,6 @@ class WebSocketManager {
          * @param {number} id The shard ID that is attempting to reconnect
          */
         this.client.emit(Events.SHARD_RECONNECTING, shard.id);
-
-        if (shard.sessionID) {
-          this.debug(`Session ID is present, attempting an immediate reconnect...`, shard);
-          shard.connect().catch(() => null);
-          return;
-        }
-
-        shard.destroy();
 
         this.shardQueue.add(shard);
         this.reconnect();
@@ -253,7 +245,7 @@ class WebSocketManager {
       await shard.connect();
     } catch (error) {
       if (error && error.code && UNRECOVERABLE_CLOSE_CODES.includes(error.code)) {
-        throw new DJSError(WSCodes[error.code]);
+        throw new Error(WSCodes[error.code]);
       } else {
         this.debug('Failed to connect to the gateway, requeueing...', shard);
         this.shardQueue.add(shard);
@@ -267,28 +259,23 @@ class WebSocketManager {
       return this.createShards();
     }
 
+    this.reconnecting = false;
+
     return true;
   }
 
   /**
    * Handles reconnects for this manager.
    * @private
-   * @returns {Promise<boolean>}
    */
   async reconnect() {
-    if (this.reconnecting || this.status !== Status.READY) return false;
+    if (this.reconnecting) return;
     this.reconnecting = true;
     try {
       await this._handleSessionLimit();
       await this.createShards();
     } catch (error) {
       this.debug(`Couldn't reconnect or fetch information about the gateway. ${error}`);
-      if (error.message && !error.message.startsWith('401')) {
-        this.debug(`Possible network error occured. Retrying in 5s...`);
-        await Util.delayFor(5000);
-        this.reconnecting = false;
-        return this.reconnect();
-      }
       // If we get an error at this point, it means we cannot reconnect anymore
       if (this.client.listenerCount(Events.INVALIDATED)) {
         /**
@@ -306,7 +293,6 @@ class WebSocketManager {
     } finally {
       this.reconnecting = false;
     }
-    return true;
   }
 
   /**
@@ -324,7 +310,6 @@ class WebSocketManager {
    */
   destroy() {
     if (this.destroyed) return;
-    this.debug(`Manager was destroyed. Called by:\n${new Error('MANAGER_DESTROYED').stack}`);
     this.destroyed = true;
     this.shardQueue.clear();
     for (const shard of this.shards.values()) shard.destroy();
