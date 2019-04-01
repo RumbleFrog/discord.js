@@ -245,8 +245,6 @@ exports.Events = {
   MESSAGE_REACTION_REMOVE: 'messageReactionRemove',
   MESSAGE_REACTION_REMOVE_ALL: 'messageReactionRemoveAll',
   USER_UPDATE: 'userUpdate',
-  USER_NOTE_UPDATE: 'userNoteUpdate',
-  USER_SETTINGS_UPDATE: 'clientUserSettingsUpdate',
   PRESENCE_UPDATE: 'presenceUpdate',
   VOICE_SERVER_UPDATE: 'voiceServerUpdate',
   VOICE_STATE_UPDATE: 'voiceStateUpdate',
@@ -269,6 +267,7 @@ exports.Events = {
 
 exports.ShardEvents = {
   CLOSE: 'close',
+  DESTROYED: 'destroyed',
   INVALID_SESSION: 'invalidSession',
   READY: 'ready',
   RESUMED: 'resumed',
@@ -320,7 +319,6 @@ exports.PartialTypes = keyMirror([
  * * MESSAGE_REACTION_REMOVE
  * * MESSAGE_REACTION_REMOVE_ALL
  * * USER_UPDATE
- * * USER_NOTE_UPDATE
  * * USER_SETTINGS_UPDATE
  * * PRESENCE_UPDATE
  * * VOICE_STATE_UPDATE
