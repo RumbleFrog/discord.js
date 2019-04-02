@@ -46,11 +46,11 @@ class ShardClientUtil {
   }
 
   /**
-   * Array of shard IDs of this client
-   * @type {number[]}
+   * Shard ID or array of shard IDs of this client
+   * @type {number|number[]}
    * @readonly
    */
-  get ids() {
+  get id() {
     return this.client.options.shards;
   }
 
