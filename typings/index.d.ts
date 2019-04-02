@@ -296,7 +296,7 @@ declare module 'discord.js' {
 		public lastKey(): K | undefined;
 		public lastKey(count: number): K[];
 		public map<T>(fn: (value: V, key: K, collection: Collection<K, V>) => T, thisArg?: any): T[];
-		public partition(fn: (value: V, key: K, collection: Collection<K, V>) => boolean): [Collection<K, V>, Collection<K, V>];
+		public partition(fn: (value: V, key: K, collection: Collection<K, V>) => boolean, thisArg?: any): [Collection<K, V>, Collection<K, V>];
 		public random(): V | undefined;
 		public random(count: number): V[];
 		public randomKey(): K | undefined;
@@ -347,12 +347,13 @@ declare module 'discord.js' {
 	}
 
 	export class DiscordAPIError extends Error {
-		constructor(path: string, error: object, method: string);
+		constructor(path: string, error: object, method: string, httpStatus: number);
 		private static flattenErrors(obj: object, key: string): string[];
 
 		public code: number;
 		public method: string;
 		public path: string;
+		public httpStatus: number;
 	}
 
 	export class DMChannel extends TextBasedChannel(Channel) {
@@ -936,7 +937,7 @@ declare module 'discord.js' {
 
 		public client: Client;
 		public readonly count: number;
-		public readonly id: number | number[];
+		public readonly ids: number[];
 		public mode: ShardingManagerMode;
 		public parentPort: any;
 		public broadcastEval(script: string): Promise<any[]>;
