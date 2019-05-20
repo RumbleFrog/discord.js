@@ -357,8 +357,8 @@ class Message extends Base {
    * @readonly
    */
   get pinnable() {
-    return !this.guild ||
-      this.channel.permissionsFor(this.client.user).has(Permissions.FLAGS.MANAGE_MESSAGES, false);
+    return this.type === 'DEFAULT' && (!this.guild ||
+      this.channel.permissionsFor(this.client.user).has(Permissions.FLAGS.MANAGE_MESSAGES, false));
   }
 
   /**
@@ -454,13 +454,11 @@ class Message extends Base {
    */
   delete({ timeout = 0, reason } = {}) {
     if (timeout <= 0) {
-      return this.client.api.channels(this.channel.id).messages(this.id)
-        .delete({ reason })
-        .then(() =>
-          this.client.actions.MessageDelete.handle({
-            id: this.id,
-            channel_id: this.channel.id,
-          }).message);
+      return this.channel.messages.remove(this.id, reason).then(() =>
+        this.client.actions.MessageDelete.handle({
+          id: this.id,
+          channel_id: this.channel.id,
+        }).message);
     } else {
       return new Promise(resolve => {
         this.client.setTimeout(() => {

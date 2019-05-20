@@ -1,5 +1,6 @@
 'use strict';
 
+const EventEmitter = require('events');
 const { Error: DJSError } = require('../../errors');
 const Collection = require('../../util/Collection');
 const Util = require('../../util/Util');
@@ -21,9 +22,14 @@ const UNRECOVERABLE_CLOSE_CODES = [4004, 4010, 4011];
 
 /**
  * The WebSocket manager for this client.
+ * <info>This class forwards raw dispatch events,
+ * read more about it here {@link https://discordapp.com/developers/docs/topics/gateway}</info>
+ * @extends EventEmitter
  */
-class WebSocketManager {
+class WebSocketManager extends EventEmitter {
   constructor(client) {
+    super();
+
     /**
      * The client that instantiated this WebSocketManager
      * @type {Client}
@@ -154,8 +160,9 @@ class WebSocketManager {
       }
     }
 
-    if (this.client.options.shards instanceof Array) {
-      const { shards } = this.client.options;
+    const { shards } = this.client.options;
+
+    if (Array.isArray(shards)) {
       this.totalShards = shards.length;
       this.debug(`Spawning shards: ${shards.join(', ')}`);
       this.shardQueue = new Set(shards.map(id => new WebSocketShard(this, id)));
@@ -192,15 +199,6 @@ class WebSocketManager {
         this.client.emit(Events.SHARD_READY, shard.id);
 
         if (!this.shardQueue.size) this.reconnecting = false;
-      });
-
-      shard.on(ShardEvents.RESUMED, () => {
-        /**
-         * Emitted when a shard resumes successfully.
-         * @event Client#shardResumed
-         * @param {number} id The shard ID that resumed
-         */
-        this.client.emit(Events.SHARD_RESUMED, shard.id);
       });
 
       shard.on(ShardEvents.CLOSE, event => {
@@ -266,9 +264,12 @@ class WebSocketManager {
     } catch (error) {
       if (error && error.code && UNRECOVERABLE_CLOSE_CODES.includes(error.code)) {
         throw new DJSError(WSCodes[error.code]);
-      } else {
+        // Undefined if session is invalid, error event (or uws' event mimicking it) for regular closes
+      } else if (!error || error.code) {
         this.debug('Failed to connect to the gateway, requeueing...', shard);
         this.shardQueue.add(shard);
+      } else {
+        throw error;
       }
     }
     // If we have more shards, add a 5s delay
@@ -433,7 +434,10 @@ class WebSocketManager {
       this.debug('Tried to mark self as ready, but already ready');
       return;
     }
+
     this.status = Status.READY;
+
+    this.client.readyAt = new Date();
 
     /**
      * Emitted when the client becomes ready to start working.
