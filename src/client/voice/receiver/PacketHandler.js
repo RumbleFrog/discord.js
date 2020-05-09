@@ -1,13 +1,15 @@
 'use strict';
 
-const secretbox = require('../util/Secretbox');
 const EventEmitter = require('events');
+const secretbox = require('../util/Secretbox');
 
 // The delay between packets when a user is considered to have stopped speaking
 // https://github.com/discordjs/discord.js/issues/3524#issuecomment-540373200
 const DISCORD_SPEAKING_DELAY = 250;
 
-class Readable extends require('stream').Readable { _read() {} } // eslint-disable-line no-empty-function
+class Readable extends require('stream').Readable {
+  _read() {} // eslint-disable-line no-empty-function
+}
 
 class PacketHandler extends EventEmitter {
   constructor(receiver) {
@@ -59,7 +61,7 @@ class PacketHandler extends EventEmitter {
     packet = Buffer.from(packet);
 
     // Strip RTP Header Extensions (one-byte only)
-    if (packet[0] === 0xBE && packet[1] === 0xDE && packet.length > 4) {
+    if (packet[0] === 0xbe && packet[1] === 0xde && packet.length > 4) {
       const headerExtensionLength = packet.readUInt16BE(2);
       let offset = 4;
       for (let i = 0; i < headerExtensionLength; i++) {
@@ -84,13 +86,18 @@ class PacketHandler extends EventEmitter {
 
     let speakingTimeout = this.speakingTimeouts.get(ssrc);
     if (typeof speakingTimeout === 'undefined') {
+      // Ensure at least the speaking bit is set.
+      // As the object is by reference, it's only needed once per client re-connect.
+      if (userStat.speaking === 0) {
+        userStat.speaking = 1;
+      }
       this.connection.onSpeaking({ user_id: userStat.userID, ssrc: ssrc, speaking: userStat.speaking });
       speakingTimeout = this.receiver.connection.client.setTimeout(() => {
         try {
           this.connection.onSpeaking({ user_id: userStat.userID, ssrc: ssrc, speaking: 0 });
           this.receiver.connection.client.clearTimeout(speakingTimeout);
           this.speakingTimeouts.delete(ssrc);
-        } catch (ex) {
+        } catch {
           // Connection already closed, ignore
         }
       }, DISCORD_SPEAKING_DELAY);

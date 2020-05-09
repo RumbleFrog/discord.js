@@ -1,16 +1,16 @@
 'use strict';
 
-const VoiceWebSocket = require('./networking/VoiceWebSocket');
+const EventEmitter = require('events');
 const VoiceUDP = require('./networking/VoiceUDPClient');
-const Util = require('../../util/Util');
-const { OPCodes, VoiceOPCodes, VoiceStatus, Events } = require('../../util/Constants');
+const VoiceWebSocket = require('./networking/VoiceWebSocket');
 const AudioPlayer = require('./player/AudioPlayer');
 const VoiceReceiver = require('./receiver/Receiver');
-const EventEmitter = require('events');
-const { Error } = require('../../errors');
 const PlayInterface = require('./util/PlayInterface');
-const Speaking = require('../../util/Speaking');
 const Silence = require('./util/Silence');
+const { Error } = require('../../errors');
+const { OPCodes, VoiceOPCodes, VoiceStatus, Events } = require('../../util/Constants');
+const Speaking = require('../../util/Speaking');
+const Util = require('../../util/Util');
 
 // Workaround for Discord now requiring silence to be sent before being able to receive audio
 class SingleSilence extends Silence {
@@ -20,11 +20,7 @@ class SingleSilence extends Silence {
   }
 }
 
-const SUPPORTED_MODES = [
-  'xsalsa20_poly1305_lite',
-  'xsalsa20_poly1305_suffix',
-  'xsalsa20_poly1305',
-];
+const SUPPORTED_MODES = ['xsalsa20_poly1305_lite', 'xsalsa20_poly1305_suffix', 'xsalsa20_poly1305'];
 
 /**
  * Represents a connection to a guild's voice server.
@@ -148,22 +144,23 @@ class VoiceConnection extends EventEmitter {
   /**
    * Sets whether the voice connection should display as "speaking", "soundshare" or "none".
    * @param {BitFieldResolvable} value The new speaking state
-   * @private
    */
   setSpeaking(value) {
     if (this.speaking.equals(value)) return;
     if (this.status !== VoiceStatus.CONNECTED) return;
     this.speaking = new Speaking(value).freeze();
-    this.sockets.ws.sendPacket({
-      op: VoiceOPCodes.SPEAKING,
-      d: {
-        speaking: this.speaking.bitfield,
-        delay: 0,
-        ssrc: this.authentication.ssrc,
-      },
-    }).catch(e => {
-      this.emit('debug', e);
-    });
+    this.sockets.ws
+      .sendPacket({
+        op: VoiceOPCodes.SPEAKING,
+        d: {
+          speaking: this.speaking.bitfield,
+          delay: 0,
+          ssrc: this.authentication.ssrc,
+        },
+      })
+      .catch(e => {
+        this.emit('debug', e);
+      });
   }
 
   /**
@@ -181,19 +178,25 @@ class VoiceConnection extends EventEmitter {
    * @private
    */
   sendVoiceStateUpdate(options = {}) {
-    options = Util.mergeDefault({
-      guild_id: this.channel.guild.id,
-      channel_id: this.channel.id,
-      self_mute: this.voice ? this.voice.selfMute : false,
-      self_deaf: this.voice ? this.voice.selfDeaf : false,
-    }, options);
+    options = Util.mergeDefault(
+      {
+        guild_id: this.channel.guild.id,
+        channel_id: this.channel.id,
+        self_mute: this.voice ? this.voice.selfMute : false,
+        self_deaf: this.voice ? this.voice.selfDeaf : false,
+      },
+      options,
+    );
 
     this.emit('debug', `Sending voice state update: ${JSON.stringify(options)}`);
 
-    return this.channel.guild.shard.send({
-      op: OPCodes.VOICE_STATE_UPDATE,
-      d: options,
-    }, true);
+    return this.channel.guild.shard.send(
+      {
+        op: OPCodes.VOICE_STATE_UPDATE,
+        d: options,
+      },
+      true,
+    );
   }
 
   /**
@@ -318,8 +321,7 @@ class VoiceConnection extends EventEmitter {
    */
   authenticate() {
     this.sendVoiceStateUpdate();
-    this.connectTimeout = this.client.setTimeout(
-      () => this.authenticateFailed('VOICE_CONNECTION_TIMEOUT'), 15000);
+    this.connectTimeout = this.client.setTimeout(() => this.authenticateFailed('VOICE_CONNECTION_TIMEOUT'), 15000);
   }
 
   /**
@@ -370,7 +372,6 @@ class VoiceConnection extends EventEmitter {
      */
     this.emit('disconnect');
   }
-
 
   /**
    * Cleans up after disconnect.
@@ -452,8 +453,7 @@ class VoiceConnection extends EventEmitter {
   onSessionDescription(data) {
     Object.assign(this.authentication, data);
     this.status = VoiceStatus.CONNECTED;
-    const dispatcher = this.play(new SingleSilence(), { type: 'opus' });
-    dispatcher.on('finish', () => {
+    const ready = () => {
       this.client.clearTimeout(this.connectTimeout);
       this.emit('debug', `Ready with authentication details: ${JSON.stringify(this.authentication)}`);
       /**
@@ -462,7 +462,14 @@ class VoiceConnection extends EventEmitter {
        * @event VoiceConnection#ready
        */
       this.emit('ready');
-    });
+    };
+    if (this.dispatcher) {
+      ready();
+    } else {
+      // This serves to provide support for voice receive, sending audio is required to receive it.
+      const dispatcher = this.play(new SingleSilence(), { type: 'opus', volume: false });
+      dispatcher.once('finish', ready);
+    }
   }
 
   onStartSpeaking({ user_id, ssrc, speaking }) {
@@ -477,7 +484,7 @@ class VoiceConnection extends EventEmitter {
   onSpeaking({ user_id, speaking }) {
     speaking = new Speaking(speaking).freeze();
     const guild = this.channel.guild;
-    const user = this.client.users.get(user_id);
+    const user = this.client.users.cache.get(user_id);
     const old = this._speaking.get(user_id);
     this._speaking.set(user_id, speaking);
     /**
@@ -507,7 +514,7 @@ class VoiceConnection extends EventEmitter {
     }
   }
 
-  play() { } // eslint-disable-line no-empty-function
+  play() {} // eslint-disable-line no-empty-function
 }
 
 PlayInterface.applyToClass(VoiceConnection);
