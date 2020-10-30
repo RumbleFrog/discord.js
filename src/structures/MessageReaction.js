@@ -127,10 +127,10 @@ class MessageReaction {
     this.users.cache.delete(user.id);
     if (!this.me || user.id !== this.message.client.user.id) this.count--;
     if (user.id === this.message.client.user.id) this.me = false;
-	// Removing this call because the users count/size is unknown and will result in false removal
-    if (this.count <= 0 && this.users.cache.size === 0) {
-      this.message.reactions.cache.delete(this.emoji.id || this.emoji.name);
-    }
+	  // Removing this call because the users count/size is unknown and will result in false removal
+    // if (this.count <= 0 && this.users.cache.size === 0) {
+    //   this.message.reactions.cache.delete(this.emoji.id || this.emoji.name);
+    // }
   }
 }
 
